@@ -3,6 +3,7 @@
 #if __has_include(<React/RCTConvert.h>)
 #import <React/RCTConvert.h>
 #import <React/RCTBridge.h>
+#import <React/RCTUtils.h>
 #else // back compatibility for RN version < 0.40
 #import "RCTConvert.h"
 #import "RCTBridge.h"
@@ -42,27 +43,24 @@ RCT_EXPORT_METHOD(show:(NSDictionary *)options
                   callback:(RCTResponseSenderBlock)callback) {
 
     NSArray *allowedUTIs = [RCTConvert NSArray:options[@"filetype"]];
-    UIDocumentMenuViewController *documentPicker = [[UIDocumentMenuViewController alloc] initWithDocumentTypes:(NSArray *)allowedUTIs inMode:UIDocumentPickerModeImport];
+    UIDocumentMenuViewController *documentMenu = [[UIDocumentMenuViewController alloc] initWithDocumentTypes:(NSArray *)allowedUTIs inMode:UIDocumentPickerModeImport];
 
     [composeCallbacks addObject:callback];
 
 
-    documentPicker.delegate = self;
-    documentPicker.modalPresentationStyle = UIModalPresentationFormSheet;
+    documentMenu.delegate = self;
+    documentMenu.modalPresentationStyle = UIModalPresentationFormSheet;
 
-    UIViewController *rootViewController = [[[[UIApplication sharedApplication]delegate] window] rootViewController];
-    while (rootViewController.modalViewController) {
-        rootViewController = rootViewController.modalViewController;
-    }
+    UIViewController *rootViewController = RCTPresentedViewController();
 
     if ( IDIOM == IPAD ) {
         NSNumber *top = [RCTConvert NSNumber:options[@"top"]];
         NSNumber *left = [RCTConvert NSNumber:options[@"left"]];
-        [documentPicker.popoverPresentationController setSourceRect: CGRectMake([left floatValue], [top floatValue], 0, 0)];
-        [documentPicker.popoverPresentationController setSourceView: rootViewController.view];
+        [documentMenu.popoverPresentationController setSourceRect: CGRectMake([left floatValue], [top floatValue], 0, 0)];
+        [documentMenu.popoverPresentationController setSourceView: rootViewController.view];
     }
 
-    [rootViewController presentViewController:documentPicker animated:YES completion:nil];
+    [rootViewController presentViewController:documentMenu animated:YES completion:nil];
 }
 
 
@@ -70,11 +68,8 @@ RCT_EXPORT_METHOD(show:(NSDictionary *)options
     documentPicker.delegate = self;
     documentPicker.modalPresentationStyle = UIModalPresentationFormSheet;
 
-    UIViewController *rootViewController = [[[[UIApplication sharedApplication]delegate] window] rootViewController];
-    
-    while (rootViewController.modalViewController) {
-        rootViewController = rootViewController.modalViewController;
-    }
+    UIViewController *rootViewController = RCTPresentedViewController();
+
     if ( IDIOM == IPAD ) {
         [documentPicker.popoverPresentationController setSourceRect: CGRectMake(rootViewController.view.frame.size.width/2, rootViewController.view.frame.size.height - rootViewController.view.frame.size.height / 6, 0, 0)];
         [documentPicker.popoverPresentationController setSourceView: rootViewController.view];
