@@ -6,6 +6,6 @@
 
 @import UIKit;
 
-@interface RNDocumentPicker : NSObject <RCTBridgeModule>
+@interface RNDocumentPicker : NSObject <RCTBridgeModule, UIDocumentMenuDelegate, UIDocumentPickerDelegate>
 
 @end
