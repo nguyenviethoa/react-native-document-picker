@@ -45,6 +45,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
     }
 
     private Callback callback;
+    private boolean isMultiple;
 
     public DocumentPicker(ReactApplicationContext reactContext) {
         super(reactContext);
@@ -61,7 +62,10 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         Intent intent;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
             intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+            if (args.hasKey("multiple") && args.getBoolean("multiple")) {
+                this.isMultiple = true;
+                intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, this.isMultiple);
+            }
         } else {
             intent = new Intent(Intent.ACTION_PICK);
         }
@@ -100,21 +104,24 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         }
 
         try {
-            List<Uri> uris = new ArrayList<Uri>();
-            if (data.getClipData() != null) {
-                ClipData clipData = data.getClipData();
-                for (int i = 0; i < clipData.getItemCount(); i++) {
-                    ClipData.Item item = clipData.getItemAt(i);
-                    if (item.getUri() != null) {
-                        Uri uri = item.getUri();
-                        uris.add(uri);
+            if (this.isMultiple) {
+                List<Uri> uris = new ArrayList<Uri>();
+                if (data.getClipData() != null) {
+                    ClipData clipData = data.getClipData();
+                    for (int i = 0; i < clipData.getItemCount(); i++) {
+                        ClipData.Item item = clipData.getItemAt(i);
+                        if (item.getUri() != null) {
+                            Uri uri = item.getUri();
+                            uris.add(uri);
+                        }
                     }
+                } else {
+                    uris.add(data.getData());
                 }
+                callback.invoke(null, toListWithMetadata(uris));
             } else {
-                Uri uri = data.getData();
-                uris.add(uri);
+                callback.invoke(null, toMapWithMetadata(data.getData()));
             }
-            callback.invoke(null, toListWithMetadata(uris));
         } catch (Exception e) {
             Log.e(NAME, "Failed to read", e);
             callback.invoke(e.getMessage(), null);

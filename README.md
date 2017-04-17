@@ -30,6 +30,7 @@ const DocumentPicker = require('react-native').NativeModules.RNDocumentPicker;
 
 // iPhone/Android
 DocumentPicker.show({
+      multiple: true, // only in android
       filetype: ['public.image'],
     },(error,url) => {
       alert(url);
