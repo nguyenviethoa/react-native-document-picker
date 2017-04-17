@@ -1,6 +1,7 @@
 package com.reactnativedocumentpicker;
 
 import android.app.Activity;
+import android.content.ClipData;
 import android.content.ContentResolver;
 import android.content.Intent;
 import android.database.Cursor;
@@ -18,6 +19,7 @@ import com.facebook.react.bridge.ReactContextBaseJavaModule;
 import com.facebook.react.bridge.ReactMethod;
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
+import com.facebook.react.bridge.WritableArray;
 import com.facebook.react.bridge.WritableMap;
 
 import java.io.File;
@@ -26,6 +28,8 @@ import java.io.IOException;
 import java.net.URL;
 import java.nio.channels.Channels;
 import java.nio.channels.ReadableByteChannel;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * @see <a href="https://developer.android.com/guide/topics/providers/document-provider.html">android documentation</a>
@@ -57,6 +61,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         Intent intent;
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
             intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
         } else {
             intent = new Intent(Intent.ACTION_PICK);
         }
@@ -95,12 +100,35 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         }
 
         try {
-            Uri uri = data.getData();
-            callback.invoke(null, toMapWithMetadata(uri));
+            List<Uri> uris = new ArrayList<Uri>();
+            if (data.getClipData() != null) {
+                ClipData clipData = data.getClipData();
+                for (int i = 0; i < clipData.getItemCount(); i++) {
+                    ClipData.Item item = clipData.getItemAt(i);
+                    if (item.getUri() != null) {
+                        Uri uri = item.getUri();
+                        uris.add(uri);
+                    }
+                }
+            } else {
+                Uri uri = data.getData();
+                uris.add(uri);
+            }
+            callback.invoke(null, toListWithMetadata(uris));
         } catch (Exception e) {
             Log.e(NAME, "Failed to read", e);
             callback.invoke(e.getMessage(), null);
         }
+    }
+
+    private WritableArray toListWithMetadata(List<Uri> uris) {
+        WritableArray list = Arguments.createArray();
+
+        for (Uri uri : uris) {
+            list.pushMap(toMapWithMetadata(uri));
+        }
+
+        return list;
     }
 
     private WritableMap toMapWithMetadata(Uri uri) {
