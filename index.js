@@ -13,6 +13,10 @@ class DocumentPickerUtil {
     return (Platform.OS === 'android') ? "*/*" : "public.content";
   }
 
+  static movie() {
+    return Platform.select({"ios": "public.mpeg-4", "android": "video/mp4"});
+  }
+
   static images() {
     return (Platform.OS === 'android') ? "image/*" : "public.image";
   }
