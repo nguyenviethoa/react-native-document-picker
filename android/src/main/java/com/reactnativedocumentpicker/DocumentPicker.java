@@ -67,7 +67,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
                 intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, this.isMultiple);
             }
         } else {
-            intent = new Intent(Intent.ACTION_PICK);
+            intent = new Intent(Intent.ACTION_GET_CONTENT);
         }
         intent.addCategory(Intent.CATEGORY_OPENABLE);
 
