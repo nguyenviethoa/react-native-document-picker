@@ -14,7 +14,7 @@ class DocumentPickerUtil {
   }
 
   static movie() {
-    return Platform.select({"ios": "public.mpeg-4", "android": "video/mp4"});
+    return Platform.select({"ios": "public.movie", "android": "video/mp4"});
   }
 
   static images() {
