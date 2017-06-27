@@ -59,22 +59,27 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
     @ReactMethod
     public void show(ReadableMap args, Callback callback) {
-        Intent intent;
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-            intent = new Intent(Intent.ACTION_GET_CONTENT);
             if (args.hasKey("multiple") && args.getBoolean("multiple")) {
                 this.isMultiple = true;
                 intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, this.isMultiple);
             }
-        } else {
-            intent = new Intent(Intent.ACTION_GET_CONTENT);
         }
-        intent.addCategory(Intent.CATEGORY_OPENABLE);
 
         if (!args.isNull("filetype")) {
             ReadableArray filetypes = args.getArray("filetype");
-            if (filetypes.size() > 0) {
-                intent.setType(filetypes.getString(0));
+            if (filetypes.size() > 1 && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+                    intent.setType("*/*");
+                    final String[] types = new String[filetypes.size()];
+                    for (int i = 0; i < filetypes.size(); i++) {
+                        types[i] = filetypes.getString(i);
+                    }
+                    intent.putExtra(Intent.EXTRA_MIME_TYPES, types);
+            } else if (filetypes.size() > 0) {
+                    intent.setType(filetypes.getString(0));
             }
         }
 
