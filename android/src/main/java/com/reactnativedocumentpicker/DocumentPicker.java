@@ -90,11 +90,6 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
     // removed @Override temporarily just to get it working on RN0.33 and RN0.32 - will remove
     public void onActivityResult(Activity activity, int requestCode, int resultCode, Intent data) {
-        onActivityResult(requestCode, resultCode, data);
-    }
-
-    // removed @Override temporarily just to get it working on RN0.33 and RN0.32
-    public void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (requestCode != READ_REQUEST_CODE)
             return;
 
@@ -123,9 +118,9 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
                 } else {
                     uris.add(data.getData());
                 }
-                callback.invoke(null, toListWithMetadata(uris));
+                callback.invoke(null, toListWithMetadata(activity, uris));
             } else {
-                callback.invoke(null, toMapWithMetadata(data.getData()));
+                callback.invoke(null, toMapWithMetadata(activity, data.getData()));
             }
         } catch (Exception e) {
             Log.e(NAME, "Failed to read", e);
@@ -133,17 +128,17 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         }
     }
 
-    private WritableArray toListWithMetadata(List<Uri> uris) {
+    private WritableArray toListWithMetadata(Activity activity, List<Uri> uris) {
         WritableArray list = Arguments.createArray();
 
         for (Uri uri : uris) {
-            list.pushMap(toMapWithMetadata(uri));
+            list.pushMap(toMapWithMetadata(activity, uri));
         }
 
         return list;
     }
 
-    private WritableMap toMapWithMetadata(Uri uri) {
+    private WritableMap toMapWithMetadata(Activity activity, Uri uri) {
         WritableMap map;
         if(uri.toString().startsWith("/")) {
             map = metaDataFromFile(new File(uri.toString()));
@@ -151,6 +146,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
             map = metaDataFromUri(uri);
         } else {
             map = metaDataFromContentResolver(uri);
+            activity.grantUriPermission(activity.getPackageName(), uri, Intent.FLAG_GRANT_READ_URI_PERMISSION);
         }
 
         map.putString("uri", uri.toString());
