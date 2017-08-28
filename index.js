@@ -1,6 +1,6 @@
 'use strict';
 
-import {Platform, NativeModules} from "react-native";
+import {Platform, NativeModules, NativeEventEmitter} from "react-native";
 const DocumentPicker = NativeModules.RNDocumentPicker;
 
 /**
@@ -34,4 +34,19 @@ class DocumentPickerUtil {
   }
 }
 
-module.exports = {DocumentPickerUtil, DocumentPicker};
+const incomingShareEmitter = new NativeEventEmitter(DocumentPicker);
+
+class IncomingShare {
+    static EVENT = "onIncomingShare";
+    static addEventListener(event, callback) {
+        return incomingShareEmitter.addListener(event, callback);
+    }
+    static removeEventListener(event, callback) {
+      incomingShareEmitter.removeListener(event, callback);
+    }
+    static getIncomingAttachments = DocumentPicker.getIncomingAttachments;
+}
+
+module.exports = {DocumentPickerUtil, DocumentPicker, IncomingShare};
+
+

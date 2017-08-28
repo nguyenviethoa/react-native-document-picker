@@ -11,16 +11,8 @@ import android.provider.OpenableColumns;
 import android.util.Log;
 import android.webkit.MimeTypeMap;
 
-import com.facebook.react.bridge.ActivityEventListener;
-import com.facebook.react.bridge.Arguments;
-import com.facebook.react.bridge.Callback;
-import com.facebook.react.bridge.ReactApplicationContext;
-import com.facebook.react.bridge.ReactContextBaseJavaModule;
-import com.facebook.react.bridge.ReactMethod;
-import com.facebook.react.bridge.ReadableArray;
-import com.facebook.react.bridge.ReadableMap;
-import com.facebook.react.bridge.WritableArray;
-import com.facebook.react.bridge.WritableMap;
+import com.facebook.react.bridge.*;
+import com.facebook.react.modules.core.DeviceEventManagerModule;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -38,6 +30,8 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
     private static final String NAME = "RNDocumentPicker";
     private static final int READ_REQUEST_CODE = 41;
 
+    private final ReactApplicationContext mReactContext;
+
     private static class Fields {
         private static final String FILE_SIZE = "fileSize";
         private static final String FILE_NAME = "fileName";
@@ -49,6 +43,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
     public DocumentPicker(ReactApplicationContext reactContext) {
         super(reactContext);
+        mReactContext = reactContext;
         reactContext.addActivityEventListener(this);
     }
 
@@ -72,14 +67,14 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         if (!args.isNull("filetype")) {
             ReadableArray filetypes = args.getArray("filetype");
             if (filetypes.size() > 1 && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
-                    intent.setType("*/*");
-                    final String[] types = new String[filetypes.size()];
-                    for (int i = 0; i < filetypes.size(); i++) {
-                        types[i] = filetypes.getString(i);
-                    }
-                    intent.putExtra(Intent.EXTRA_MIME_TYPES, types);
+                intent.setType("*/*");
+                final String[] types = new String[filetypes.size()];
+                for (int i = 0; i < filetypes.size(); i++) {
+                    types[i] = filetypes.getString(i);
+                }
+                intent.putExtra(Intent.EXTRA_MIME_TYPES, types);
             } else if (filetypes.size() > 0) {
-                    intent.setType(filetypes.getString(0));
+                intent.setType(filetypes.getString(0));
             }
         }
 
@@ -105,7 +100,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
         try {
             if (this.isMultiple) {
-                List<Uri> uris = new ArrayList<Uri>();
+                List<Uri> uris = new ArrayList<>();
                 if (data.getClipData() != null) {
                     ClipData clipData = data.getClipData();
                     for (int i = 0; i < clipData.getItemCount(); i++) {
@@ -140,7 +135,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
     private WritableMap toMapWithMetadata(Activity activity, Uri uri) {
         WritableMap map;
-        if(uri.toString().startsWith("/")) {
+        if (uri.toString().startsWith("/")) {
             map = metaDataFromFile(new File(uri.toString()));
         } else if (uri.toString().startsWith("http")) {
             map = metaDataFromUri(uri);
@@ -156,17 +151,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
 
     private WritableMap metaDataFromUri(Uri uri) {
         WritableMap map = Arguments.createMap();
-
-        File outputDir = getReactApplicationContext().getCacheDir();
-        try {
-            File downloaded = download(uri, outputDir);
-
-            map.putInt(Fields.FILE_SIZE, (int) downloaded.length());
-            map.putString(Fields.FILE_NAME, downloaded.getName());
-            map.putString(Fields.TYPE, mimeTypeFromName(uri.toString()));
-        } catch (IOException e) {
-            Log.e("DocumentPicker", "Failed to download file", e);
-        }
+        map.putString(Fields.TYPE, mimeTypeFromName(uri.toString()));
 
         return map;
     }
@@ -174,7 +159,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
     private WritableMap metaDataFromFile(File file) {
         WritableMap map = Arguments.createMap();
 
-        if(!file.exists())
+        if (!file.exists())
             return map;
 
         map.putInt(Fields.FILE_SIZE, (int) file.length());
@@ -220,7 +205,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         URL url = new URL(uri.toString());
 
         ReadableByteChannel channel = Channels.newChannel(url.openStream());
-        try{
+        try {
             FileOutputStream stream = new FileOutputStream(file);
 
             try {
@@ -243,7 +228,63 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         }
     }
 
-    // Required for RN 0.30+ modules than implement ActivityEventListener
+    private void sendEvent(String eventName, WritableMap params) {
+        mReactContext
+                .getJSModule(DeviceEventManagerModule.RCTDeviceEventEmitter.class)
+                .emit(eventName, params);
+    }
+
+    @Override
     public void onNewIntent(Intent intent) {
+        WritableMap params = getUrisFromIntent(intent);
+        if (params == null) return;
+
+        sendEvent("onIncomingShare", params);
+    }
+
+    private WritableMap getUrisFromIntent(Intent intent) {
+        IntentReader intentReader = IntentReader.from(intent);
+
+        if (!intentReader.isShareIntent()) {
+            return null;
+        }
+
+        WritableMap params = Arguments.createMap();
+
+        if (intentReader.getText() != null) {
+            params.putString("text", intentReader.getText().toString());
+        }
+        params.putString("mimeType", intentReader.getType());
+        params.putString("html", intentReader.getHtmlText());
+
+        List<Uri> uris = new ArrayList<>();
+        for (int i = 0; i < intentReader.getStreamCount(); i++) {
+            uris.add(intentReader.getStream(i));
+        }
+        params.putArray("attachments", toListWithMetadata(mReactContext.getCurrentActivity(), uris));
+        return params;
+    }
+
+    /**
+     * Return the URL the activity was started with
+     *
+     * @param promise a promise which is resolved with the initial URL
+     */
+    @ReactMethod
+    public void getIncomingAttachments(Promise promise) {
+        try {
+            Activity currentActivity = getCurrentActivity();
+            if (currentActivity != null) {
+                WritableMap params = getUrisFromIntent(currentActivity.getIntent());
+                if (params != null) {
+                    promise.resolve(params);
+                    return;
+                }
+            }
+            promise.reject("ERROR_NO_ATTACHMENTS", "Not a incoming share intent");
+        } catch (Exception e) {
+            promise.reject(new JSApplicationIllegalArgumentException(
+                    "Could not get the initial URL : " + e.getMessage()));
+        }
     }
 }
