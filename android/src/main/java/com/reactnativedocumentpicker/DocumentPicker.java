@@ -58,6 +58,7 @@ public class DocumentPicker extends ReactContextBaseJavaModule implements Activi
         intent.addCategory(Intent.CATEGORY_OPENABLE);
 
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.KITKAT) {
+            intent = new Intent(Intent.ACTION_GET_CONTENT);
             if (args.hasKey("multiple") && args.getBoolean("multiple")) {
                 this.isMultiple = true;
                 intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, this.isMultiple);
